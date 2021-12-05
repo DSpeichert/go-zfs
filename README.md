@@ -1,29 +1,33 @@
-# Go Wrapper for ZFS #
+# Go Wrapper for ZFS
 
 Simple wrappers for ZFS command line tools.
 
-[![GoDoc](https://godoc.org/github.com/mistifyio/go-zfs?status.svg)](https://godoc.org/github.com/mistifyio/go-zfs)
+To use:
+```
+go get github.com/DSpeichert/go-zfs/v3
+```
 
-## Requirements ##
+[![Go Reference](https://pkg.go.dev/badge/github.com/DSpeichert/go-zfs/v3.svg)](https://pkg.go.dev/github.com/DSpeichert/go-zfs/v3)
 
-You need a working ZFS setup.  To use on Ubuntu 14.04, setup ZFS:
+This is a hard fork of [mistifyio/go-zfs](https://github.com/mistifyio/go-zfs), which unfortunately has not seen a new release since 2015 despite merging some PRs.
 
-    sudo apt-get install python-software-properties
-    sudo apt-add-repository ppa:zfs-native/stable
-    sudo apt-get update
-    sudo apt-get install ubuntu-zfs libzfs-dev
+One may prefer to use the more maintained [zrepl/zrepl/zfs](https://github.com/zrepl/zrepl/tree/master/zfs) package.
 
-Developed using Go 1.3, but currently there isn't anything 1.3 specific. Don't use Ubuntu packages for Go, use http://golang.org/doc/install
+## Requirements
+
+You need a working ZFS setup. [Ubuntu](https://ubuntu.com/tutorials/setup-zfs-storage-pool) is arguably the easiest to use with ZFS natively.
 
 Generally you need root privileges to use anything zfs related.
 
-## Status ##
+## Changelog
 
-This has been only been tested on Ubuntu 14.04
+* `go mod` support
+* `v3` is an API-breaking change, hence it's a major release.
+* Github Actions run tests on latest Ubuntu corresponding ZFS version bundled
+* `context.Context` added everywhere to support timeouts, the context is passed to `exec.Exec`
+* tests moved to same package name to avoid self-dependency
 
-In the future, we hope to work directly with libzfs.
-
-# Hacking #
+# Hacking
 
 The tests have decent examples for most functions.
 
@@ -32,23 +36,22 @@ The tests have decent examples for most functions.
 //error handling omitted
 
 
-f, err := zfs.CreateFilesystem("test/snapshot-test", nil)
+f, err := zfs.CreateFilesystem(context.TODO(), "test/snapshot-test", nil)
 ok(t, err)
 
-s, err := f.Snapshot("test", nil)
+s, err := f.Snapshot(context.TODO(), "test", nil)
 ok(t, err)
 
 // snapshot is named "test/snapshot-test@test"
 
-c, err := s.Clone("test/clone-test", nil)
+c, err := s.Clone(context.TODO(), "test/clone-test", nil)
 
-err := c.Destroy()
-err := s.Destroy()
-err := f.Destroy()
+err := c.Destroy(context.TODO())
+err := s.Destroy(context.TODO())
+err := f.Destroy(context.TODO())
 
 ```
 
 # Contributing #
 
 See the [contributing guidelines](./CONTRIBUTING.md)
-

@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -20,9 +21,9 @@ type command struct {
 	Stdout  io.Writer
 }
 
-func (c *command) Run(arg ...string) ([][]string, error) {
+func (c *command) Run(ctx context.Context, arg ...string) ([][]string, error) {
 
-	cmd := exec.Command(c.Command, arg...)
+	cmd := exec.CommandContext(ctx, c.Command, arg...)
 
 	var stdout, stderr bytes.Buffer
 
@@ -92,33 +93,33 @@ func setUint(field *uint64, value string) error {
 	return nil
 }
 
-func (ds *Dataset) parseLine(line []string) error {
+func (d *Dataset) parseLine(line []string) error {
 	var err error
 
 	if len(line) != len(dsPropList) {
-		return errors.New("Output does not match what is expected on this platform")
+		return errors.New("output does not match what is expected on this platform")
 	}
-	setString(&ds.Name, line[0])
-	setString(&ds.Origin, line[1])
+	setString(&d.Name, line[0])
+	setString(&d.Origin, line[1])
 
-	if err = setUint(&ds.Used, line[2]); err != nil {
+	if err = setUint(&d.Used, line[2]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Avail, line[3]); err != nil {
+	if err = setUint(&d.Avail, line[3]); err != nil {
 		return err
 	}
 
-	setString(&ds.Mountpoint, line[4])
-	setString(&ds.Compression, line[5])
-	setString(&ds.Type, line[6])
+	setString(&d.Mountpoint, line[4])
+	setString(&d.Compression, line[5])
+	setString(&d.Type, line[6])
 
-	if err = setUint(&ds.Volsize, line[7]); err != nil {
+	if err = setUint(&d.Volsize, line[7]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Quota, line[8]); err != nil {
+	if err = setUint(&d.Quota, line[8]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Referenced, line[9]); err != nil {
+	if err = setUint(&d.Referenced, line[9]); err != nil {
 		return err
 	}
 
@@ -126,13 +127,13 @@ func (ds *Dataset) parseLine(line []string) error {
 		return nil
 	}
 
-	if err = setUint(&ds.Written, line[10]); err != nil {
+	if err = setUint(&d.Written, line[10]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Logicalused, line[11]); err != nil {
+	if err = setUint(&d.Logicalused, line[11]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Usedbydataset, line[12]); err != nil {
+	if err = setUint(&d.Usedbydataset, line[12]); err != nil {
 		return err
 	}
 
@@ -192,7 +193,7 @@ var inodeTypeMap = map[string]InodeType{
 }
 
 // matches (+1) or (-1)
-var referenceCountRegex = regexp.MustCompile("\\(([+-]\\d+?)\\)")
+var referenceCountRegex = regexp.MustCompile(`\(([+-]\d+?)\)`)
 
 func parseReferenceCount(field string) (int, error) {
 	matches := referenceCountRegex.FindStringSubmatch(field)
@@ -277,20 +278,20 @@ func parseInodeChanges(lines [][]string) ([]*InodeChange, error) {
 	for i, line := range lines {
 		c, err := parseInodeChange(line)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse line %d of zfs diff: %v, got: '%s'", i, err, line)
+			return nil, fmt.Errorf("failed to parse line %d of zfs diff: %v, got: '%s'", i, err, line)
 		}
 		changes[i] = c
 	}
 	return changes, nil
 }
 
-func listByType(t, filter string) ([]*Dataset, error) {
+func listByType(ctx context.Context, t, filter string) ([]*Dataset, error) {
 	args := []string{"list", "-rHp", "-t", t, "-o", dsPropListOptions}
 
 	if filter != "" {
 		args = append(args, filter)
 	}
-	out, err := zfs(args...)
+	out, err := zfs(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
