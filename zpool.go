@@ -1,5 +1,7 @@
 package zfs
 
+import "context"
+
 // ZFS zpool states, which can indicate if a pool is online, offline,
 // degraded, etc.  More information regarding zpool states can be found here:
 // https://docs.oracle.com/cd/E19253-01/819-5461/gamno/index.html.
@@ -28,22 +30,19 @@ type Zpool struct {
 }
 
 // zpool is a helper function to wrap typical calls to zpool.
-func zpool(arg ...string) ([][]string, error) {
+func zpool(ctx context.Context, arg ...string) ([][]string, error) {
 	c := command{Command: "zpool"}
-	return c.Run(arg...)
+	return c.Run(ctx, arg...)
 }
 
 // GetZpool retrieves a single ZFS zpool by name.
-func GetZpool(name string) (*Zpool, error) {
+func GetZpool(ctx context.Context, name string) (*Zpool, error) {
 	args := zpoolArgs
 	args = append(args, name)
-	out, err := zpool(args...)
+	out, err := zpool(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
-
-	// there is no -H
-	out = out[1:]
 
 	z := &Zpool{Name: name}
 	for _, line := range out {
@@ -56,20 +55,20 @@ func GetZpool(name string) (*Zpool, error) {
 }
 
 // Datasets returns a slice of all ZFS datasets in a zpool.
-func (z *Zpool) Datasets() ([]*Dataset, error) {
-	return Datasets(z.Name)
+func (z *Zpool) Datasets(ctx context.Context) ([]*Dataset, error) {
+	return Datasets(ctx, z.Name)
 }
 
 // Snapshots returns a slice of all ZFS snapshots in a zpool.
-func (z *Zpool) Snapshots() ([]*Dataset, error) {
-	return Snapshots(z.Name)
+func (z *Zpool) Snapshots(ctx context.Context) ([]*Dataset, error) {
+	return Snapshots(ctx, z.Name)
 }
 
 // CreateZpool creates a new ZFS zpool with the specified name, properties,
 // and optional arguments.
 // A full list of available ZFS properties and command-line arguments may be
 // found here: https://www.freebsd.org/cgi/man.cgi?zfs(8).
-func CreateZpool(name string, properties map[string]string, args ...string) (*Zpool, error) {
+func CreateZpool(ctx context.Context, name string, properties map[string]string, args ...string) (*Zpool, error) {
 	cli := make([]string, 1, 4)
 	cli[0] = "create"
 	if properties != nil {
@@ -77,7 +76,7 @@ func CreateZpool(name string, properties map[string]string, args ...string) (*Zp
 	}
 	cli = append(cli, name)
 	cli = append(cli, args...)
-	_, err := zpool(cli...)
+	_, err := zpool(ctx, cli...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,15 +85,15 @@ func CreateZpool(name string, properties map[string]string, args ...string) (*Zp
 }
 
 // Destroy destroys a ZFS zpool by name.
-func (z *Zpool) Destroy() error {
-	_, err := zpool("destroy", z.Name)
+func (z *Zpool) Destroy(ctx context.Context) error {
+	_, err := zpool(ctx, "destroy", z.Name)
 	return err
 }
 
 // ListZpools list all ZFS zpools accessible on the current system.
-func ListZpools() ([]*Zpool, error) {
+func ListZpools(ctx context.Context) ([]*Zpool, error) {
 	args := []string{"list", "-Ho", "name"}
-	out, err := zpool(args...)
+	out, err := zpool(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +101,7 @@ func ListZpools() ([]*Zpool, error) {
 	var pools []*Zpool
 
 	for _, line := range out {
-		z, err := GetZpool(line[0])
+		z, err := GetZpool(ctx, line[0])
 		if err != nil {
 			return nil, err
 		}
